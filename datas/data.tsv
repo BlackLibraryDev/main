@@ -1,0 +1,10 @@
+item_key	image	tags	link
+unabomber	datas/images/unabomber.jpg	#text #web	https://brunch.co.kr/@shadowstar/2
+francenespana	datas/images/francenespana.png	#text #web	https://brunch.co.kr/magazine/francenespana
+civDrugCalculator	datas/images/civDrugCalculator.png	#app #android 	https://play.google.com/store/apps/details?id=com.BlackLibrary.CIVdrugsCalculatorhttps://civdrugcalculator.com/
+civWeb	datas/images/civWeb.png	#web	https://civdrugcalculator.com/
+projectCD	datas/images/defendyourcastle.png	#WIP #game #phaser3 #web 	https://blacklibrarydev.github.io/web-project-CD/
+pripyatSJ	datas/images/pripyatSJ.png	#WIP #game #phaser3 #web	https://blacklibrarydev.github.io/web-project-SJ
+projectRTS	datas/images/projectRTS.jpg	#WIP	https://blacklibrarydev.github.io/web-project-RTS
+testimony	datas/images/testimony.png	#WIP	
+wallbreak2	datas/images/wallbreak2.jpg	#game	

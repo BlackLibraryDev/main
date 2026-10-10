@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Black Library</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    body { font-family: 'Pretendard', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen pb-16 transition-colors duration-200">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 dark:bg-slate-900 dark:border-slate-800 sticky top-0 z-30 shadow-sm transition-colors duration-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-row items-center justify-between gap-4">
+      
+      <!-- 좌측 영역: 필터 버튼 + 타이틀 -->
+      <div class="flex items-center gap-3">
+        <button 
+          onclick="openSidebar()" 
+          title="태그 필터"
+          class="relative p-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 dark:text-indigo-400 rounded-lg border border-indigo-200/60 dark:border-indigo-800/60 transition-colors shrink-0 flex items-center justify-center"
+        >
+          <i class="fa-solid fa-sliders text-sm"></i>
+          <span id="activeFilterBadge" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-indigo-600 border-2 border-white dark:border-slate-900"></span>
+        </button>
+
+        <div>
+          <h1 class="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+           
+            <span data-i18n="app_title">Black Library</span>
+          </h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 hidden sm:block" data-i18n="app_subtitle">datas/data.tsv 파일에서 데이터를 자동으로 불러옵니다.</p>
+        </div>
+      </div>
+
+      <!-- 우측 영역: 다크모드 버튼 + 언어 드롭다운 -->
+      <div class="flex items-center gap-3">
+        <button 
+          id="darkModeBtn" 
+          onclick="toggleDarkMode()" 
+          title="야간 모드"
+          class="p-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors shrink-0 flex items-center justify-center"
+        >
+          <i id="darkModeIcon" class="fa-solid fa-moon text-xs"></i>
+        </button>
+
+        <div class="relative shrink-0">
+          <select 
+            id="langSelect" 
+            class="bg-slate-100 text-xs font-medium border border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 rounded-lg py-2 pl-3 pr-8 focus:bg-white dark:focus:bg-slate-800 focus:border-indigo-500 focus:outline-none appearance-none cursor-pointer"
+          >
+            <option value="ko">한국어</option>
+            <option value="en">English</option>
+            <!--<option value="ja">日本語 (JA)</option>-->
+          </select>
+          <i class="fa-solid fa-globe absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 좌측 사이드바 팝업 -->
+  <div id="sidebarOverlay" class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+    <aside 
+      id="sidebarDrawer" 
+      class="fixed inset-y-0 left-0 w-70 max-w-[75vw] bg-white dark:bg-slate-900 shadow-2xl z-50 -translate-x-full transition-transform duration-300 ease-in-out flex flex-col"
+    >
+      <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
+        <div class="flex items-center gap-2 text-slate-900 dark:text-white font-bold text-base">
+          <i class="fa-solid fa-filter text-indigo-600 dark:text-indigo-400 text-sm"></i>
+          <span data-i18n="tag_filter_title">태그 필터</span>
+        </div>
+        <button 
+          onclick="closeSidebar()" 
+          class="w-8 h-8 rounded-full hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center transition-colors"
+        >
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <div class="p-4 flex-1 overflow-y-auto flex flex-col gap-5 min-h-0">
+        <div>
+          <p class="text-xs text-slate-400 dark:text-slate-500 font-medium mb-3" data-i18n="sidebar_hint">원하는 카테고리 태그를 선택하세요.</p>
+          <div id="tagContainer" class="flex flex-col gap-2"></div>
+        </div>
+      </div>
+      <div class="p-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2" data-i18n="tag_search_label">태그 검색</label>
+          <div class="relative w-full">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input 
+              type="text" 
+              id="tagSearchInput"
+              data-i18n-placeholder="tag_search_placeholder"
+              placeholder="태그 검색..." 
+              class="w-full pl-8 pr-4 py-2 text-xs bg-slate-100 dark:bg-slate-800 dark:text-slate-200 dark:placeholder-slate-500 rounded-lg border border-transparent focus:bg-white dark:focus:bg-slate-800 focus:border-indigo-500 focus:outline-none transition-all"
+            >
+          </div>
+        </div>
+      <div class="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex gap-2 shrink-0 pb-10 sm:pb-4">
+        <button 
+          onclick="resetAllFilters()" 
+          class="flex-1 py-3 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl transition-colors"
+        >
+          <i class="fa-solid fa-rotate-left mr-1"></i>
+          <span data-i18n="reset_filter">필터 초기화</span>
+        </button>
+        <button 
+          onclick="closeSidebar()" 
+          class="flex-1 py-3 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-sm"
+        >
+          <span data-i18n="apply_filter">적용하기</span>
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+
+    <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-200 dark:border-slate-800">
+      <div class="flex items-center gap-3">
+        <span id="resultCount" class="text-sm font-medium text-slate-600 dark:text-slate-400">
+          <span data-i18n="count_prefix">전체</span> 
+          <strong class="text-indigo-600 dark:text-indigo-400" id="countNumber">0</strong><span data-i18n="count_unit">개</span>
+        </span>
+        <span id="selectedTagBadge" class="hidden text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-900 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+          <span id="selectedTagText"></span>
+          <button onclick="toggleTag('ALL')" class="hover:text-indigo-800 dark:hover:text-indigo-200"><i class="fa-solid fa-xmark"></i></button>
+        </span>
+      </div>
+
+      <button 
+        id="resetBtn" 
+        onclick="resetAllFilters()"
+        class="text-xs text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 font-medium transition-colors hidden"
+      >
+        <i class="fa-solid fa-rotate-left mr-1"></i>
+        <span data-i18n="reset_filter">필터 초기화</span>
+      </button>
+    </div>
+
+    <!-- 카드 그리드 영역 -->
+    <div id="cardGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div class="col-span-full py-20 text-center text-slate-400 dark:text-slate-600">
+        <i class="fa-solid fa-spinner animate-spin text-2xl mb-2 text-indigo-500"></i>
+        <p class="text-sm" data-i18n="loading_data">데이터를 불러오는 중입니다...</p>
+      </div>
+    </div>
+
+    <div id="emptyState" class="hidden text-center py-16">
+      <div class="w-16 h-16 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-3">
+        <i class="fa-solid fa-folder-open text-2xl"></i>
+      </div>
+      <h3 class="text-base font-semibold text-slate-700 dark:text-slate-200" data-i18n="empty_title">검색 결과가 없습니다</h3>
+      <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" data-i18n="empty_desc">다른 검색어나 해시태그를 선택해보세요.</p>
+    </div>
+
+  </main>
+
+  <!-- 상세 정보 모달 -->
+  <div id="detailModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm hidden transition-opacity duration-200">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 dark:border-slate-800 flex flex-col relative">
+      <button 
+        onclick="closeModal()" 
+        class="absolute top-3 right-3 z-10 w-9 h-9 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center backdrop-blur-md transition-colors"
+      >
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="relative w-full h-64 md:h-80 bg-slate-100 dark:bg-slate-800">
+        <img id="modalImage" src="" alt="" class="w-full h-full object-cover" />
+      </div>
+
+      <div class="p-6 flex-1 flex flex-col justify-between gap-6">
+        <div>
+          <h2 id="modalTitle" class="text-2xl font-bold text-slate-900 dark:text-white mb-3"></h2>
+          <p id="modalDescription" class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-line"></p>
+        </div>
+
+        <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div id="modalTags" class="flex flex-wrap gap-1.5"></div>
+          
+          <a 
+            id="modalExternalLink" 
+            href="#" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-sm"
+          >
+            <span data-i18n="visit_link">외부 링크 방문</span>
+            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
