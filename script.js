@@ -1,4 +1,4 @@
-const DEFAULT_IMAGE = 'datas/default.png';
+const DEFAULT_IMAGE = 'datas/images/default.png';
 
 let allItems = [];
 let i18nData = {};            // language.tsv
@@ -7,6 +7,9 @@ let contentTranslateData = {};// content_translate.tsv
 let currentLang = localStorage.getItem('app_lang') || 'ko';
 let selectedTags = [];        // 다중 선택된 태그 배열
 let tagSearchQuery = '';      // 사이드바 내부 태그 검색어
+
+let currentImageIndex = 0;
+let modalImagesArray = [];
 
 // TSV 파싱 함수 (category 컬럼 지원)
 function parseTSV(tsvText) {
@@ -31,6 +34,80 @@ function parseTSV(tsvText) {
     return item;
   }).filter(Boolean);
 }
+// 1. 쉼표(,) 기준으로 이미지 경로를 파싱하는 함수
+function parseImages(imageField) {
+  if (!imageField) return [];
+  // 쉼표(,)를 기준으로 나누고 앞뒤 공백 제거, 빈 값 필터링
+  return imageField.split(',').map(img => img.trim()).filter(img => img.length > 0);
+}
+// 2. 모달 내부 슬라이더 렌더링 (1장일 때는 화살표/인디케이터 숨김)
+function renderModalSlider(container) {
+  const hasMultiple = modalImagesArray.length > 1;
+
+  container.innerHTML = `
+    <div class="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden group">
+      <!-- 이미지 표시 -->
+      <img 
+        id="modalActiveImage" 
+        src="${modalImagesArray[currentImageIndex]}" 
+        alt="Detail Image" 
+        class="w-full h-full object-cover transition-all duration-300"
+        onerror="this.src='https://placehold.co/600x400/e2e8f0/475569?text=Image+Error'"
+      />
+
+      <!-- 좌우 슬라이드 버튼 (사진이 2장 이상일 때만 노출) -->
+      ${hasMultiple ? `
+        <button 
+          onclick="event.stopPropagation(); slideModalImage(-1)" 
+          class="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition-all opacity-80 group-hover:opacity-100 cursor-pointer"
+          title="이전 사진"
+        >
+          <i class="fa-solid fa-chevron-left text-sm"></i>
+        </button>
+        <button 
+          onclick="event.stopPropagation(); slideModalImage(1)" 
+          class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition-all opacity-80 group-hover:opacity-100 cursor-pointer"
+          title="다음 사진"
+        >
+          <i class="fa-solid fa-chevron-right text-sm"></i>
+        </button>
+
+        <!-- 하단 점(Dot) 인디케이터 컨테이너 -->
+        <div class="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/40 backdrop-blur-sm rounded-full flex items-center gap-1.5 pointer-events-none" id="modalDotsContainer">
+          ${modalImagesArray.map((_, idx) => `
+            <span class="w-2 h-2 rounded-full transition-all duration-300 ${idx === currentImageIndex ? 'bg-white w-4' : 'bg-white/40'}"></span>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+// 슬라이드 인덱스 변경 함수
+function slideModalImage(direction) {
+  if (modalImagesArray.length <= 1) return;
+  
+  currentImageIndex = (currentImageIndex + direction + modalImagesArray.length) % modalImagesArray.length;
+  
+  const activeImg = document.getElementById('modalActiveImage');
+  if (activeImg) {
+    activeImg.src = modalImagesArray[currentImageIndex];
+  }
+
+  // 점(Dot) 인디케이터 활성화 상태 갱신
+  const dotsContainer = document.getElementById('modalDotsContainer');
+  if (dotsContainer) {
+    const dots = dotsContainer.children;
+    for (let i = 0; i < dots.length; i++) {
+      if (i === currentImageIndex) {
+        dots[i].className = 'w-4 h-2 rounded-full transition-all duration-300 bg-white';
+      } else {
+        dots[i].className = 'w-2 h-2 rounded-full transition-all duration-300 bg-white/40';
+      }
+    }
+  }
+}
+
 
 // UI 번역 함수
 function t(key, fallback = '') {
@@ -174,7 +251,7 @@ function checkImageExists(url) {
     const img = new Image();
     img.onload = () => resolve(true);
     img.onerror = () => resolve(false);
-    img.src = url;
+    img.src = url.split(',')[0].trim(); // 쉼표로 구분된 경우 첫 번째 이미지 경로만 확인
   });
 }
 
@@ -415,6 +492,10 @@ async function renderCards() {
     const title = getContentText(item.item_key, 'title') || t('no_image_title', '제목 없음');
     const description = getContentText(item.item_key, 'desc')
 
+    // 쉼표로 구분된 이미지 중 맨 첫 번째(대표) 이미지 추출
+    const imagesArray = parseImages(item.image);
+    const firstImage = imagesArray.length > 0 ? imagesArray[0] : DEFAULT_IMAGE;
+
     return `
       <article 
         onclick="openModal(${item.id})"
@@ -422,7 +503,7 @@ async function renderCards() {
       >
         <div class="relative w-full h-48 bg-slate-100 dark:bg-slate-800 overflow-hidden">
           <img 
-            src="${item.displayImage}" 
+            src="${firstImage}" 
             alt="${title}" 
             class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
@@ -513,15 +594,13 @@ function openModal(itemId) {
   if (!item) return;
 
   const modal = document.getElementById('detailModal');
-  const modalImage = document.getElementById('modalImage');
+  //const modalImage = document.getElementById('modalImage');
   const modalTitle = document.getElementById('modalTitle');
   const modalDescription = document.getElementById('modalDescription');
   const modalTags = document.getElementById('modalTags');
   const modalExternalLink = document.getElementById('modalExternalLink');
 
-  checkImageExists(item.image).then(exists => {
-    modalImage.src = exists ? item.image : DEFAULT_IMAGE;
-  });
+  
 
   const title = getContentText(item.item_key, 'title') || t('no_image_title', '제목 없음');
   const description = getContentText(item.item_key, 'desc');
@@ -529,7 +608,22 @@ function openModal(itemId) {
   modalTitle.textContent = title;
   modalDescription.textContent = description;
 
-  // 모달 내부 태그 및 카테고리 뱃지 렌더링
+  // 1. 이미지 배열 파싱 (\ 기호 기준으로 분리)
+  modalImagesArray = parseImages(item.image);
+  currentImageIndex = 0;
+
+  const modalImageContainer = document.getElementById('modalImageContainer'); // 모달 내 이미지 영역 래퍼
+  
+  if (modalImagesArray.length > 0) {
+    renderModalSlider(modalImageContainer);
+  } else {
+    modalImageContainer.innerHTML = `
+      <div class="w-full aspect-video bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 text-sm">
+        이미지가 없습니다
+      </div>
+    `;
+  }
+
   // 모달 내부 태그 및 카테고리 뱃지 렌더링
   modalTags.innerHTML = `
     ${item.category ? `
