@@ -5,10 +5,10 @@ let i18nData = {};            // language.tsv
 let tagTranslateData = {};    // translate.tsv
 let contentTranslateData = {};// content_translate.tsv
 let currentLang = localStorage.getItem('app_lang') || 'ko';
-let selectedTags = [];        // 단일 문자열에서 배열(Array)로 변경 (다중 선택 관리)
+let selectedTags = [];        // 다중 선택된 태그 배열
 let tagSearchQuery = '';      // 사이드바 내부 태그 검색어
 
-// TSV 파싱 함수
+// TSV 파싱 함수 (category 컬럼 지원)
 function parseTSV(tsvText) {
   const lines = tsvText.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
@@ -26,6 +26,8 @@ function parseTSV(tsvText) {
         item[header] = values[i] || '';
       }
     });
+    // category가 없는 데이터 대비 기본값 처리
+    if (!item.category) item.category = 'general';
     return item;
   }).filter(Boolean);
 }
@@ -48,7 +50,19 @@ function translateTag(tagKey) {
     return translated.startsWith('#') ? translated : '#' + translated;
   }
   
-  return tagKey.startsWith('#') ? tagKey : '#' + tagKey;
+  return tagKey.startsWith('#`') ? tagKey : (tagKey.startsWith('#') ? tagKey : '#' + tagKey);
+}
+
+// 카테고리 번역 함수 (translate.tsv 또는 기본 키 활용)
+function translateCategory(categoryKey) {
+  if (!categoryKey) return '';
+  const cleanKey = categoryKey.toString().replace(/^#/, '').toLowerCase().trim();
+  
+  // 번역 데이터에 있으면 번역 적용, 없으면 첫글자 대문자화 등 기본 처리
+  if (tagTranslateData[cleanKey] && tagTranslateData[cleanKey][currentLang]) {
+    return tagTranslateData[cleanKey][currentLang];
+  }
+  return categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1);
 }
 
 // 콘텐츠 번역 함수
@@ -184,34 +198,30 @@ async function loadContentData() {
   }
 }
 
-// 사이드바 내 태그 목록 렌더링 (다중 선택 상태 체크 반영)
+// 사이드바 내 카테고리별 태그 그룹 렌더링
 function renderTags() {
-  const tagSet = new Set();
+  const categoryMap = {};
   allItems.forEach(item => {
+    const cat = item.category || 'general';
+    if (!categoryMap[cat]) {
+      categoryMap[cat] = new Set();
+    }
     if (Array.isArray(item.tags)) {
-      item.tags.forEach(tag => tagSet.add(tag.startsWith('#') ? tag : '#' + tag));
+      item.tags.forEach(tag => categoryMap[cat].add(tag.startsWith('#') ? tag : '#' + tag));
     }
   });
 
-  const uniqueTags = Array.from(tagSet);
   const tagContainer = document.getElementById('tagContainer');
   const q = tagSearchQuery.toLowerCase();
-
-  const filteredTags = uniqueTags.filter(tagKey => {
-    if (!q) return true;
-    const translated = translateTag(tagKey).toLowerCase();
-    return tagKey.toLowerCase().includes(q) || translated.includes(q);
-  });
-
   let html = '';
 
-  // '전체' 버튼 (선택된 태그가 없을 때 활성화)
+  // '전체' 선택 버튼
   const isAllActive = selectedTags.length === 0;
   if (!q || '전체'.includes(q) || 'all'.includes(q)) {
     html += `
       <button 
         onclick="toggleTag('ALL')" 
-        class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${isAllActive ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-700'}"
+        class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all mb-3 ${isAllActive ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-700'}"
       >
         <span>${t('tag_all', '전체')}</span>
         ${isAllActive ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
@@ -219,32 +229,76 @@ function renderTags() {
     `;
   }
 
-  if (filteredTags.length === 0 && q) {
-    html += `
-      <div class="text-center py-8 text-slate-400">
-        <p class="text-xs">검색된 태그가 없습니다.</p>
-      </div>
-    `;
-  } else {
-    filteredTags.forEach(tagKey => {
-      const isChecked = selectedTags.includes(tagKey);
-      const displayTagText = translateTag(tagKey);
+  let hasVisibleTags = false;
+
+  Object.keys(categoryMap).forEach(catKey => {
+    const rawTags = Array.from(categoryMap[catKey]);
+    
+    const filteredTags = rawTags.filter(tagKey => {
+      if (!q) return true;
+      const translated = translateTag(tagKey).toLowerCase();
+      const catTranslated = translateCategory(catKey).toLowerCase();
+      return tagKey.toLowerCase().includes(q) || translated.includes(q) || catTranslated.includes(q);
+    });
+
+    if (filteredTags.length > 0) {
+      hasVisibleTags = true;
+      const displayCategoryName = translateCategory(catKey);
+
+      // 해당 카테고리의 모든 태그가 선택되어 있는지 확인
+      const isCategoryAllSelected = rawTags.length > 0 && rawTags.every(tag => selectedTags.includes(tag));
 
       html += `
-        <button 
-          onclick="toggleTag('${tagKey}')" 
-          class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${isChecked ? 'bg-indigo-600 text-white font-semibold shadow-sm' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60'}"
-        >
-          <span>${displayTagText}</span>
-          ${isChecked ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
-        </button>
+        <div class="mb-4">
+          <!-- 카테고리 제목을 클릭하면 하위 태그 전체 선택/해제 -->
+          <button 
+            onclick="toggleCategory('${catKey}')"
+            class="w-full text-left text-[11px] font-bold uppercase tracking-wider mb-2 px-1 flex items-center justify-between group transition-colors"
+          >
+            <div class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+              <i class="fa-solid fa-folder-open text-xs text-indigo-500"></i>
+              <span>${displayCategoryName}</span>
+            </div>
+            <span class="text-[10px] font-medium px-1.5 py-0.5 rounded ${isCategoryAllSelected ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300' : 'text-slate-400 opacity-0 group-hover:opacity-100'} transition-all">
+              ${isCategoryAllSelected ? '전체 해제' : '전체 선택'}
+            </span>
+          </button>
+          
+          <div class="flex flex-col gap-1.5 pl-1">
       `;
-    });
+
+      filteredTags.forEach(tagKey => {
+        const isChecked = selectedTags.includes(tagKey);
+        const displayTagText = translateTag(tagKey);
+
+        html += `
+          <button 
+            onclick="toggleTag('${tagKey}')" 
+            class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${isChecked ? 'bg-indigo-600 text-white font-semibold shadow-sm' : 'bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}"
+          >
+            <span>${displayTagText}</span>
+            ${isChecked ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
+          </button>
+        `;
+      });
+
+      html += `
+          </div>
+        </div>
+      `;
+    }
+  });
+
+  if (!hasVisibleTags && q) {
+    html += `
+      <div class="text-center py-8 text-slate-400">
+        <p class="text-xs">검색된 카테고리/태그가 없습니다.</p>
+      </div>
+    `;
   }
 
   tagContainer.innerHTML = html;
 
-  // 선택된 태그 개수 및 뱃지 표시
   const selectedTagBadge = document.getElementById('selectedTagBadge');
   const selectedTagText = document.getElementById('selectedTagText');
   const activeFilterBadge = document.getElementById('activeFilterBadge');
@@ -258,8 +312,41 @@ function renderTags() {
     activeFilterBadge.classList.add('hidden');
   }
 }
+// 특정 카테고리의 모든 하위 태그 토글 (전체 선택 / 전체 해제)
+async function toggleCategory(categoryKey) {
+  // 해당 카테고리에 속한 모든 태그 수집
+  const categoryTags = new Set();
+  allItems.forEach(item => {
+    const cat = item.category || 'general';
+    if (cat === categoryKey && Array.isArray(item.tags)) {
+      item.tags.forEach(tag => categoryTags.add(tag.startsWith('#') ? tag : '#' + tag));
+    }
+  });
 
-// 메인 카드 목록 렌더링 (다중 선택 태그 모두 포함하는 AND 또는 OR 조건 필터링)
+  const tagsArray = Array.from(categoryTags);
+  if (tagsArray.length === 0) return;
+
+  // 이미 모든 태그가 선택되어 있는지 확인
+  const isAllSelected = tagsArray.every(tag => selectedTags.includes(tag));
+
+  if (isAllSelected) {
+    // 모두 선택되어 있다면 해당 카테고리의 태그들을 모두 제거
+    selectedTags = selectedTags.filter(tag => !tagsArray.includes(tag));
+  } else {
+    // 하나라도 안 되어 있다면 해당 카테고리의 태그들을 모두 추가 (중복 방지)
+    tagsArray.forEach(tag => {
+      if (!selectedTags.includes(tag)) {
+        selectedTags.push(tag);
+      }
+    });
+  }
+
+  renderTags();
+  await renderCards();
+}
+
+
+// 메인 카드 목록 렌더링
 async function renderCards() {
   const cardGrid = document.getElementById('cardGrid');
   const emptyState = document.getElementById('emptyState');
@@ -269,9 +356,6 @@ async function renderCards() {
   const filtered = allItems.filter(item => {
     if (selectedTags.length === 0) return true;
     const itemTags = (item.tags || []).map(t => t.startsWith('#') ? t : '#' + t);
-    
-    // OR 조건: 선택된 태그 중 하나라도 포함되면 표시하려면 some 사용
-    // AND 조건: 선택된 태그를 모두 포함해야 하면 every 사용 (보통 다중선택은 OR 조건이 직관적입니다)
     return selectedTags.some(tag => itemTags.includes(tag));
   });
 
@@ -308,9 +392,9 @@ async function renderCards() {
     return `
       <article 
         onclick="openModal(${item.id})"
-        class="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col cursor-pointer group dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200"
+        class="bg-white dark:bg-slate-900 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col cursor-pointer group"
       >
-        <div class="relative w-full h-48 bg-slate-100 overflow-hidden">
+        <div class="relative w-full h-48 bg-slate-100 dark:bg-slate-800 overflow-hidden">
           <img 
             src="${item.displayImage}" 
             alt="${title}" 
@@ -321,18 +405,26 @@ async function renderCards() {
 
         <div class="p-5 flex-1 flex flex-col justify-between">
           <div>
-            <h2 class="text-lg font-bold text-slate-900 mb-1.5 line-clamp-1 group-hover:text-indigo-600 transition-colors dark:text-slate-200">${title}</h2>
-            <p class="text-slate-600 text-xs leading-relaxed line-clamp-2 mb-4 dark:text-slate-400">${description}</p>
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-1.5 line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">${title}</h2>
+            <p class="text-slate-600 dark:text-slate-300 text-xs leading-relaxed line-clamp-2 mb-4">${description}</p>
           </div>
 
-          <div class="flex items-center justify-between gap-2 pt-3 border-t border-slate-100">
-            <div class="flex flex-wrap gap-1.5 max-h-7">
+         <div class="flex items-center justify-between gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div class="flex flex-wrap gap-1.5 overflow-hidden max-h-7 items-center">
+              <!-- 1. 대분류 카테고리 뱃지 추가 -->
+              ${item.category ? `
+                <span class="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 px-2 py-0.5 rounded transition-colors"
+                  >  ${translateCategory(item.category)}
+                </span>
+              ` : ''}
+
+              <!-- 2. 기존 태그 뱃지 목록 -->
               ${(item.tags || []).map(tagKey => {
                 const cleanKey = tagKey.startsWith('#') ? tagKey : '#' + tagKey;
                 return `
                   <button 
-                    onclick="event.stopPropagation(); filterByTag('${cleanKey}');" 
-                    class="text-[11px] font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded transition-colors dark:text-slate-400 dark:bg-slate-950/60 dark:hover:bg-slate-900"
+                    onclick="event.stopPropagation(); toggleTag('${cleanKey}'); openSidebar();" 
+                    class="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 px-2 py-0.5 rounded transition-colors"
                   >
                     ${translateTag(cleanKey)}
                   </button>
@@ -340,19 +432,20 @@ async function renderCards() {
               }).join('')}
             </div>
 
-            ${item.link.length>0 ? `
+            ${item.link ? `
               <a 
                 href="${item.link}" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 onclick="event.stopPropagation();"
                 title="외부 링크 이동"
-                class="shrink-0 p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                class="shrink-0 p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:bg-slate-800 rounded-lg transition-colors"
               >
                 <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
               </a>
             ` : ''}
           </div>
+
         </div>
       </article>
     `;
@@ -446,20 +539,25 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// 다중 태그 토글 동작 (클릭하면 추가되고, 이미 있으면 해제됨)
+// 다중 태그 토글 동작
 async function toggleTag(tagKey) {
   if (tagKey === 'ALL') {
-    selectedTags = []; // '전체'를 누르면 선택 초기화
+    selectedTags = [];
   } else {
     const index = selectedTags.indexOf(tagKey);
     if (index > -1) {
-      selectedTags.splice(index, 1); // 이미 선택되어 있으면 제거
+      selectedTags.splice(index, 1);
     } else {
-      selectedTags.push(tagKey); // 선택되어 있지 않으면 추가
+      selectedTags.push(tagKey);
     }
   }
   renderTags();
   await renderCards();
+}
+
+// 호환성 유지용 함수
+function filterByTag(tagKey) {
+  toggleTag(tagKey);
 }
 
 // 필터 및 검색 초기화
