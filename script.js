@@ -67,18 +67,18 @@ function translateCategory(categoryKey) {
 
 // 콘텐츠 번역 함수
 function getContentText(itemKey, type) {
-  if (!itemKey) return '';
+  let text = '';
   const compositeKey = `${itemKey}_${type}`;
   
   if (contentTranslateData[compositeKey] && contentTranslateData[compositeKey][currentLang]) {
-    return contentTranslateData[compositeKey][currentLang];
+    text = contentTranslateData[compositeKey][currentLang];
+  } else if (contentTranslateData[compositeKey] && contentTranslateData[compositeKey]['ko']) {
+    text = contentTranslateData[compositeKey]['ko'];
   }
-  if (contentTranslateData[compositeKey] && contentTranslateData[compositeKey]['ko']) {
-    return contentTranslateData[compositeKey]['ko'];
-  }
-  return '';
-}
 
+  // TSV 안에 적힌 글자 '\n'을 실제 줄바꿈으로 변환
+  return text ? text.replace(/\\n/g, '\n') : '';
+}
 // UI 다국어 적용
 function updateLanguageUI() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -413,7 +413,7 @@ async function renderCards() {
 
   cardGrid.innerHTML = validatedItems.map(item => {
     const title = getContentText(item.item_key, 'title') || t('no_image_title', '제목 없음');
-    const description = getContentText(item.item_key, 'desc');
+    const description = getContentText(item.item_key, 'desc')
 
     return `
       <article 
@@ -432,7 +432,7 @@ async function renderCards() {
         <div class="p-5 flex-1 flex flex-col justify-between">
           <div>
             <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-1.5 line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">${title}</h2>
-            <p class="text-slate-600 dark:text-slate-300 text-xs leading-relaxed line-clamp-2 mb-4">${description}</p>
+            <p class="text-slate-600 dark:text-slate-300 text-xs leading-relaxed line-clamp-2 mb-4 whitespace-pre-line">${description}</p>
           </div>
 
          <div class="flex items-center justify-between gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
@@ -469,7 +469,7 @@ async function renderCards() {
                 rel="noopener noreferrer"
                 onclick="event.stopPropagation();"
                 title="외부 링크 이동"
-                class="shrink-0 p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:bg-slate-800 rounded-lg transition-colors"
+                class="shrink-0 py-1 px-4 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:bg-slate-800 rounded-lg transition-colors"
               >
                 <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
               </a>
