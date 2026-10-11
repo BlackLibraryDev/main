@@ -126,16 +126,17 @@
 
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
 
-    <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-200 dark:border-slate-800">
-      <div class="flex items-center gap-3">
+    <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-200 dark:border-slate-800 flex-wrap gap-3">
+      <div class="flex items-center gap-3 flex-wrap">
         <span id="resultCount" class="text-sm font-medium text-slate-600 dark:text-slate-400">
           <span data-i18n="count_prefix">전체</span> 
           <strong class="text-indigo-600 dark:text-indigo-400" id="countNumber">0</strong><span data-i18n="count_unit">개</span>
         </span>
-        <span id="selectedTagBadge" class="hidden text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-900 px-2.5 py-1 rounded-full flex items-center gap-1.5">
-          <span id="selectedTagText"></span>
-          <button onclick="toggleTag('ALL')" class="hover:text-indigo-800 dark:hover:text-indigo-200"><i class="fa-solid fa-xmark"></i></button>
-        </span>
+        
+        <!-- 선택된 태그들이 개별 상자로 들어가는 컨테이너 -->
+        <div id="selectedTagsContainer" class="hidden flex flex-wrap gap-1.5 items-center">
+          <!-- 동적 생성 -->
+        </div>
       </div>
 
       <button 

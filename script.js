@@ -247,10 +247,12 @@ function renderTags() {
 
       // 해당 카테고리의 모든 태그가 선택되어 있는지 확인
       const isCategoryAllSelected = rawTags.length > 0 && rawTags.every(tag => selectedTags.includes(tag));
-
+      // 다국어 키 결정
+      const actionKey = isCategoryAllSelected ? 'reset_filter' : 'tag_all';
+      const actionText = t(actionKey, isCategoryAllSelected ? '전체 해제' : '전체 선택');
       html += `
         <div class="mb-4">
-          <!-- 카테고리 제목을 클릭하면 하위 태그 전체 선택/해제 -->
+          <!-- 카테고리 제목 (다국어 지원 텍스트 적용) -->
           <button 
             onclick="toggleCategory('${catKey}')"
             class="w-full text-left text-[11px] font-bold uppercase tracking-wider mb-2 px-1 flex items-center justify-between group transition-colors"
@@ -259,8 +261,11 @@ function renderTags() {
               <i class="fa-solid fa-folder-open text-xs text-indigo-500"></i>
               <span>${displayCategoryName}</span>
             </div>
-            <span class="text-[10px] font-medium px-1.5 py-0.5 rounded ${isCategoryAllSelected ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300' : 'text-slate-400 opacity-0 group-hover:opacity-100'} transition-all">
-              ${isCategoryAllSelected ? '전체 해제' : '전체 선택'}
+            <span 
+              data-i18n="${actionKey}"
+              class="text-[10px] font-medium px-1.5 py-0.5 rounded ${isCategoryAllSelected ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300' : 'text-slate-400 opacity-0 group-hover:opacity-100'} transition-all"
+            >
+              ${actionText}
             </span>
           </button>
           
@@ -299,17 +304,38 @@ function renderTags() {
 
   tagContainer.innerHTML = html;
 
-  const selectedTagBadge = document.getElementById('selectedTagBadge');
-  const selectedTagText = document.getElementById('selectedTagText');
-  const activeFilterBadge = document.getElementById('activeFilterBadge');
+  // 상단 선택된 태그 개별 뱃지 컨테이너 업데이트
+  const selectedTagsContainer = document.getElementById('selectedTagsContainer');
+  const activeFilterBadge = document.getElementById('activeFilterBadge'); // (만약 헤더 필터 아이콘에 뱃지가 있다면 유지)
+  const resetBtn = document.getElementById('resetBtn');
 
   if (selectedTags.length > 0) {
-    selectedTagText.textContent = `선택됨 (${selectedTags.length})`;
-    selectedTagBadge.classList.remove('hidden');
-    activeFilterBadge.classList.remove('hidden');
+    selectedTagsContainer.classList.remove('hidden');
+    if (resetBtn) resetBtn.classList.remove('hidden');
+    if (activeFilterBadge) activeFilterBadge.classList.remove('hidden');
+
+    // 선택된 각 태그를 개별 상자(뱃지)로 생성
+    selectedTagsContainer.innerHTML = selectedTags.map(tagKey => {
+      const displayTagText = translateTag(tagKey);
+      return `
+        <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-900 px-2.5 py-1 rounded-full shadow-2xs">
+          <span>${displayTagText}</span>
+          <button 
+            onclick="toggleTag('${tagKey}')" 
+            class="w-4 h-4 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 flex items-center justify-center text-indigo-700 dark:text-indigo-200 transition-colors"
+            title="필터 해제"
+          >
+            <i class="fa-solid fa-xmark text-[10px]"></i>
+          </button>
+        </span>
+      `;
+    }).join('');
   } else {
-    selectedTagBadge.classList.add('hidden');
-    activeFilterBadge.classList.add('hidden');
+    selectedTagsContainer.classList.add('hidden');
+    selectedTagsContainer.innerHTML = '';
+    if (resetBtn) resetBtn.classList.add('hidden');
+    if (activeFilterBadge) activeFilterBadge.classList.add('hidden');
+  
   }
 }
 // 특정 카테고리의 모든 하위 태그 토글 (전체 선택 / 전체 해제)
@@ -411,19 +437,23 @@ async function renderCards() {
 
          <div class="flex items-center justify-between gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
             <div class="flex flex-wrap gap-1.5 overflow-hidden max-h-7 items-center">
-              <!-- 1. 대분류 카테고리 뱃지 추가 -->
-              ${item.category ? `
-                <span class="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 px-2 py-0.5 rounded transition-colors"
-                  >  ${translateCategory(item.category)}
-                </span>
-              ` : ''}
 
+              <!-- 1. 대분류 카테고리 뱃지 (클릭 시 해당 카테고리 하위 태그 전체 선택/토글 및 사이드바 오픈) -->
+              ${item.category ? `
+                <button 
+                  onclick="event.stopPropagation(); toggleCategory('${item.category}'); //openSidebar();" 
+                  title="카테고리 전체 선택"
+                  class="text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                >
+                  ${translateCategory(item.category)}
+                </button>
+              ` : ''}
               <!-- 2. 기존 태그 뱃지 목록 -->
               ${(item.tags || []).map(tagKey => {
                 const cleanKey = tagKey.startsWith('#') ? tagKey : '#' + tagKey;
                 return `
                   <button 
-                    onclick="event.stopPropagation(); toggleTag('${cleanKey}'); openSidebar();" 
+                    onclick="event.stopPropagation(); toggleTag('${cleanKey}'); //openSidebar();" 
                     class="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 px-2 py-0.5 rounded transition-colors"
                   >
                     ${translateTag(cleanKey)}
@@ -499,17 +529,30 @@ function openModal(itemId) {
   modalTitle.textContent = title;
   modalDescription.textContent = description;
 
-  modalTags.innerHTML = (item.tags || []).map(tagKey => {
-    const cleanKey = tagKey.startsWith('#') ? tagKey : '#' + tagKey;
-    return `
+  // 모달 내부 태그 및 카테고리 뱃지 렌더링
+  // 모달 내부 태그 및 카테고리 뱃지 렌더링
+  modalTags.innerHTML = `
+    ${item.category ? `
       <button 
-        onclick="closeModal(); toggleTag('${cleanKey}'); openSidebar();" 
-        class="text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 px-2.5 py-1 rounded-md transition-colors"
+        onclick="closeModal(); toggleCategory('${item.category}'); //openSidebar();" 
+        title="카테고리 전체 선택"
+        class="text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-3 py-1 rounded-md border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
       >
-        ${translateTag(cleanKey)}
+        ${translateCategory(item.category)}
       </button>
-    `;
-  }).join('');
+    ` : ''}
+    ${(item.tags || []).map(tagKey => {
+      const cleanKey = tagKey.startsWith('#') ? tagKey : '#' + tagKey;
+      return `
+        <button 
+          onclick="closeModal(); toggleTag('${cleanKey}'); //openSidebar();" 
+          class="text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 px-2.5 py-1 rounded-md transition-colors"
+        >
+          ${translateTag(cleanKey)}
+        </button>
+      `;
+    }).join('')}
+  `;
 
   if (item.link) {
     modalExternalLink.href = item.link;
@@ -537,6 +580,24 @@ document.addEventListener('keydown', (e) => {
     closeSidebar();
     closeModal();
   }
+});
+// ==================== 빈 배경 클릭 시 사이드바 열기 기능 ====================
+document.addEventListener('DOMContentLoaded', () => {
+  const mainElement = document.querySelector('main');
+  if (!mainElement) return;
+
+  mainElement.addEventListener('click', (e) => {
+    // 클릭된 요소가 카드(article), 버튼, 링크, 입력창 등 인터랙티브 요소가 아닐 때만 사이드바 열기
+    const isInteractive = e.target.closest('article') || 
+                          e.target.closest('button') || 
+                          e.target.closest('a') || 
+                          e.target.closest('input') || 
+                          e.target.closest('select');
+
+    if (!isInteractive) {
+      openSidebar();
+    }
+  });
 });
 
 // 다중 태그 토글 동작
