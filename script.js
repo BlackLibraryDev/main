@@ -41,17 +41,18 @@ function parseImages(imageField) {
   return imageField.split(',').map(img => img.trim()).filter(img => img.length > 0);
 }
 // 2. 모달 내부 슬라이더 렌더링 (1장일 때는 화살표/인디케이터 숨김)
+// 모달 내부 슬라이더 렌더링 함수 수정 (부모 컨테이너 이격 및 높이 문제 해결)
 function renderModalSlider(container) {
   const hasMultiple = modalImagesArray.length > 1;
 
   container.innerHTML = `
-    <div class="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden group">
-      <!-- 이미지 표시 -->
+    <div class="relative w-full bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center group p-2">
+      <!-- 이미지 표시: 고정 높이 대신 최대 높이를 제한하고 비율 유지 -->
       <img 
         id="modalActiveImage" 
         src="${modalImagesArray[currentImageIndex]}" 
         alt="Detail Image" 
-        class="w-full h-full object-cover transition-all duration-300"
+        class="w-full max-h-[350px] object-cover transition-all duration-300"
         onerror="this.src='https://placehold.co/600x400/e2e8f0/475569?text=Image+Error'"
       />
 
