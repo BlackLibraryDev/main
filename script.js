@@ -53,7 +53,7 @@ function renderModalSlider(container) {
         id="modalActiveImage" 
         src="${modalImagesArray[currentImageIndex]}" 
         alt="Detail Image" 
-        class="w-full max-h-[250px] md:max-h-[450px] object-cover transition-all duration-300"
+        class="w-full max-h-[250px] md:max-h-[350px] lg:max-h-[500px] object-cover transition-all duration-300"
         onerror="this.src='https://placehold.co/600x400/e2e8f0/475569?text=Image+Error'"
       />
 
@@ -286,7 +286,7 @@ function renderTags() {
     html += `
       <button 
         onclick="toggleTag('ALL')" 
-        class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all mb-3 ${isAllActive ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-700'}"
+        class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs lg:text-md font-semibold transition-all mb-3 ${isAllActive ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-700'}"
       >
         <span>${t('tag_all', '전체')}</span>
         ${isAllActive ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
@@ -383,7 +383,7 @@ function renderTags() {
     selectedTagsContainer.innerHTML = selectedTags.map(tagKey => {
       const displayTagText = translateTag(tagKey);
       return `
-        <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-900 px-2.5 py-1 rounded-full shadow-2xs">
+        <span class="inline-flex items-center gap-1.5 text-xs lg:text-md font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-900 px-2.5 py-1 rounded-full shadow-2xs">
           <span>${displayTagText}</span>
           <button 
             onclick="toggleTag('${tagKey}')" 
