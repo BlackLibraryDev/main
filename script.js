@@ -44,36 +44,21 @@ function parseImages(imageField) {
 // 모달 내부 슬라이더 렌더링 함수 수정 (부모 컨테이너 이격 및 높이 문제 해결)
 function renderModalSlider(container) {
   const hasMultiple = modalImagesArray.length > 1;
-
   container.innerHTML = `
-    <div class="relative w-full bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center group p-2">
-      <!-- 이미지 표시: 고정 높이 대신 최대 높이를 제한하고 비율 유지 -->
+    <div class="relative w-full  bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center ${hasMultiple ? 'cursor-pointer' : ''}"
+      ${hasMultiple ? 'onclick="slideModalImage(1)" title="다음 이미지로 이동"' : ''}
+    >
+      <!-- 이미지 표시: 가로/세로 꽉 채우고 부드러운 전환 효과 -->
       <img 
         id="modalActiveImage" 
         src="${modalImagesArray[currentImageIndex]}" 
         alt="Detail Image" 
-        class="w-full max-h-[350px] object-cover transition-all duration-300"
+        class="w-full max-h-[250px] md:max-h-[450px] object-cover transition-all duration-300"
         onerror="this.src='https://placehold.co/600x400/e2e8f0/475569?text=Image+Error'"
       />
 
-      <!-- 좌우 슬라이드 버튼 (사진이 2장 이상일 때만 노출) -->
+      <!-- 하단 점(Dot) 인디케이터 (사진이 2장 이상일 때만 노출) -->
       ${hasMultiple ? `
-        <button 
-          onclick="event.stopPropagation(); slideModalImage(-1)" 
-          class="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition-all opacity-80 group-hover:opacity-100 cursor-pointer"
-          title="이전 사진"
-        >
-          <i class="fa-solid fa-chevron-left text-sm"></i>
-        </button>
-        <button 
-          onclick="event.stopPropagation(); slideModalImage(1)" 
-          class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition-all opacity-80 group-hover:opacity-100 cursor-pointer"
-          title="다음 사진"
-        >
-          <i class="fa-solid fa-chevron-right text-sm"></i>
-        </button>
-
-        <!-- 하단 점(Dot) 인디케이터 컨테이너 -->
         <div class="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/40 backdrop-blur-sm rounded-full flex items-center gap-1.5 pointer-events-none" id="modalDotsContainer">
           ${modalImagesArray.map((_, idx) => `
             <span class="w-2 h-2 rounded-full transition-all duration-300 ${idx === currentImageIndex ? 'bg-white w-4' : 'bg-white/40'}"></span>
@@ -82,6 +67,8 @@ function renderModalSlider(container) {
       ` : ''}
     </div>
   `;
+
+  
 }
 
 // 슬라이드 인덱스 변경 함수
