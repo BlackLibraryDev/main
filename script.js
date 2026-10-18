@@ -56,7 +56,13 @@ function renderModalSlider(container) {
         class="w-full max-h-[250px] md:max-h-[350px] lg:max-h-[500px] object-cover transition-all duration-300"
         onerror="this.src='https://placehold.co/600x400/e2e8f0/475569?text=Image+Error'"
       />
-
+      <!-- 좌측 상단 다중 이미지 표시 아이콘 (사진이 2장 이상일 때만 노출) -->
+      ${hasMultiple ? `
+        <div class="absolute top-3 left-3 px-2 py-1 bg-black/40 backdrop-blur-sm text-white text-lg rounded-lg flex items-center gap-1.5 pointer-events-none">
+          <i class="fa-solid fa-images text-lg"></i>
+          <span class="font-medium text-[16px]">${modalImagesArray.length}</span>
+        </div>
+      ` : ''}
       <!-- 하단 점(Dot) 인디케이터 (사진이 2장 이상일 때만 노출) -->
       ${hasMultiple ? `
         <div class="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/40 backdrop-blur-sm rounded-full flex items-center gap-1.5 pointer-events-none" id="modalDotsContainer">
